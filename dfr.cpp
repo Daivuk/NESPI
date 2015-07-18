@@ -1,7 +1,6 @@
 #include "dfr.h"
 #include "ft2build.h"
 #include FT_FREETYPE_H
-#include <assert.h>
 #include <map>
 #include <vector>
 #include <locale>
@@ -12,6 +11,77 @@
 #endif
 #include <mutex>
 
+std::wstring ruff_utf8_to_utf16(const std::string& utf8)
+{
+    std::vector<unsigned long> unicode;
+    size_t i = 0;
+    while (i < utf8.size())
+    {
+        unsigned long uni;
+        size_t todo;
+        unsigned char ch = utf8[i++];
+        if (ch <= 0x7F)
+        {
+            uni = ch;
+            todo = 0;
+        }
+        else if (ch <= 0xBF)
+        {
+            throw std::logic_error("not a UTF-8 string");
+        }
+        else if (ch <= 0xDF)
+        {
+            uni = ch&0x1F;
+            todo = 1;
+        }
+        else if (ch <= 0xEF)
+        {
+            uni = ch&0x0F;
+            todo = 2;
+        }
+        else if (ch <= 0xF7)
+        {
+            uni = ch&0x07;
+            todo = 3;
+        }
+        else
+        {
+            throw std::logic_error("not a UTF-8 string");
+        }
+        for (size_t j = 0; j < todo; ++j)
+        {
+            if (i == utf8.size())
+                throw std::logic_error("not a UTF-8 string");
+            unsigned char ch = utf8[i++];
+            if (ch < 0x80 || ch > 0xBF)
+                throw std::logic_error("not a UTF-8 string");
+            uni <<= 6;
+            uni += ch & 0x3F;
+        }
+        if (uni >= 0xD800 && uni <= 0xDFFF)
+            throw std::logic_error("not a UTF-8 string");
+        if (uni > 0x10FFFF)
+            throw std::logic_error("not a UTF-8 string");
+        unicode.push_back(uni);
+    }
+    std::wstring utf16;
+    for (size_t i = 0; i < unicode.size(); ++i)
+    {
+        unsigned long uni = unicode[i];
+        if (uni <= 0xFFFF)
+        {
+            utf16 += (wchar_t)uni;
+        }
+        else
+        {
+            uni -= 0x10000;
+            utf16 += (wchar_t)((uni >> 10) + 0xD800);
+            utf16 += (wchar_t)((uni & 0x3FF) + 0xDC00);
+        }
+    }
+    return utf16;
+}
+
 namespace dfr {
 
 	std::mutex g_ttfFacesMutex;
@@ -21,7 +91,7 @@ namespace dfr {
 
 	void init() {
 		if (g_isInitialized) return;
-		assert(!FT_Init_FreeType(&g_ttfLibrary));
+		FT_Init_FreeType(&g_ttfLibrary);
 		g_isInitialized = true;
 	}
 
@@ -40,7 +110,7 @@ namespace dfr {
 		const sFormating& in_formating,
 		const sColor& in_color) {
 #if defined(__GNUC__)
-		const char *src = in_text.c_str();
+	/*	const char *src = in_text.c_str();
 		size_t srclen = in_text.size();
 		wchar_t *dst = new wchar_t[srclen * 2 + 1];
 		memset(dst, 0, sizeof(wchar_t) * srclen * 2 + 1);
@@ -50,7 +120,8 @@ namespace dfr {
 		iconv(conv, (char**)&src, &srclen, (char**)&dst, &dstlen);
 		iconv_close(conv);
 		std::wstring wText = pOriginalDst;
-		delete [] pOriginalDst;
+		delete [] pOriginalDst;*/
+		std::wstring wText = ruff_utf8_to_utf16(in_text);
 #else
 		std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 		std::wstring wText = converter.from_bytes(in_text);
@@ -73,11 +144,11 @@ namespace dfr {
 		{
 			const auto& it = g_faces.find(in_font.filename);
 			if (it == g_faces.end()) {
-				assert(!FT_New_Face(
+			    FT_New_Face(
 					g_ttfLibrary,
 					in_font.filename.c_str(),
 					0,
-					&face));
+					&face);
 				g_faces[in_font.filename] = face;
 			}
 			else {
@@ -93,10 +164,10 @@ namespace dfr {
 			int to = 0;
 		};
 		while (true) {
-			assert(!FT_Set_Pixel_Sizes(
+		    FT_Set_Pixel_Sizes(
 				face,
 				0,
-				pointSize));
+				pointSize);
 
 			FT_GlyphSlot	slot = face->glyph;
 			int				n, x, y, k;

@@ -77,6 +77,14 @@ void glColor3f(float r, float g, float b)
     currentVertex.a = 1.f;
 }
 
+void NESPI_glColor4f(float r, float g, float b, float a)
+{
+    currentVertex.r = r;
+    currentVertex.g = g;
+    currentVertex.b = b;
+    currentVertex.a = a;
+}
+
 void glColor3ub(uint8_t r, uint8_t g, uint8_t b)
 {
     glColor3f((float)r / 255.f, (float)g / 255.f, (float)b / 255.f);
@@ -137,7 +145,7 @@ void glVertex2f(float x, float y)
     
     if (drawingType == GL_QUADS)
     {
-        if (nCurrentVertex % 4 == 3)
+        if (nCurrentVertex % 6 == 3)
         {
             appendVertex(vertices + (nCurrentVertex - 3));
             appendVertex(vertices + (nCurrentVertex - 2));
@@ -145,6 +153,8 @@ void glVertex2f(float x, float y)
     }
     appendVertex(&currentVertex);
 }
+#else
+#define NESPI_glColor4f glColor4f
 #endif
 
 RgbColor colors[12] = {
@@ -1037,7 +1047,7 @@ void draw()
     if (menuSelected == MENU_SEARCH)
     {
         glDisable(GL_TEXTURE_2D);
-        glColor4f(0, 0, 0, .4f);
+        NESPI_glColor4f(0, 0, 0, .4f);
         glBegin(GL_QUADS);
         {
             glVertex2f(38, 64);
@@ -1531,6 +1541,7 @@ void loadResources()
     texSearchKeyboard[36] = createText("SPACE", 128 + KEYBOARD_SPACING - 64, 64, 48, dfr::eAlign::ALIGN_CENTER);
     texSearchKeyboard[37] = createTextureFromFile("backspace.png");
 
+    printf("step 5\n");
     // Load all games
     DIR *dir;
     struct dirent *ent;
@@ -1665,7 +1676,6 @@ int CALLBACK WinMain(
 #if defined(__GNUC__)
     bcm_host_init();
     
-    EGLBoolean result;
     EGLint num_config;
 
     static EGL_DISPMANX_WINDOW_T nativewindow;
@@ -1693,12 +1703,10 @@ int CALLBACK WinMain(
     assert(display != EGL_NO_DISPLAY);
 
     // initialize the EGL display connection
-    result = eglInitialize(display, NULL, NULL);
-    assert(EGL_FALSE != result);
+    eglInitialize(display, NULL, NULL);
 
     // get an appropriate EGL frame buffer configuration
-    result = eglChooseConfig(display, attribute_list, &config, 1, &num_config);
-    assert(EGL_FALSE != result);
+    eglChooseConfig(display, attribute_list, &config, 1, &num_config);
 
     // create an EGL rendering context
     context = eglCreateContext(display, config, EGL_NO_CONTEXT, NULL);
@@ -1732,8 +1740,7 @@ int CALLBACK WinMain(
     assert(surface != EGL_NO_SURFACE);
 
     // connect the context to the surface
-    result = eglMakeCurrent(display, surface, surface, context);
-    assert(EGL_FALSE != result);
+    eglMakeCurrent(display, surface, surface, context);
 #else
     // Create window
     WNDCLASS wc = {0};
@@ -1785,9 +1792,8 @@ int CALLBACK WinMain(
     SetFocus(hWnd);             // Sets Keyboard Focus To The Window
 #endif
 
-    printf("Initialized\n");
-
     loadResources();
+    printf("Initialized\n");
 
     // Setup states
     glDisable(GL_CULL_FACE);
