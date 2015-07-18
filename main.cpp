@@ -1,6 +1,16 @@
+#if defined(__GNUC__)
+#include "GLES/gl.h"
+#include "EGL/egl.h"
+#include "EGL/eglext.h"
+#include <dirent.h>
+#include <string.h>
+#include "bcm_host.h"
+#else
 #include <Windows.h>
 #include <gl\gl.h>
 #include <gl\glu.h>
+#include "dirent.h"
+#endif
 #include <cinttypes>
 #include <algorithm>
 #include <chrono>
@@ -8,20 +18,26 @@
 #include "dfr.h"
 #include "GamePad.h"
 #include "color.h"
-#include "dirent.h"
 #include <vector>
 #include <future>
 #include <thread>
 #include <list>
 #include <mutex>
 #include <fstream>
+#include <cassert>
 
 #define GL_CLAMP_TO_EDGE 0x812F
 
+#if defined(__GNUC__)
+EGLDisplay display;
+EGLSurface surface;
+EGLContext context;
+#else
 HGLRC hRC = nullptr;  // Permanent Rendering Context
 HDC hDC = nullptr;  // Private GDI Device Context
 HWND hWnd = nullptr; // Holds Our Window Handle
 HINSTANCE hInstance;      // Holds The Instance Of The Application
+#endif
 
 bool isDirty = true;
 int menuSelected = 0;
@@ -116,6 +132,17 @@ std::mutex mainLoopMutex;
 
 std::thread *pTextureLoader = nullptr;
 
+// templated version of my_equal so it could work with both char and wchar_t
+template<typename charT>
+struct my_equal
+{
+    my_equal() {}
+    bool operator()(charT ch1, charT ch2)
+    {
+        return ::toupper(ch1) == ::toupper(ch2);
+    }
+};
+
 // find substring (case insensitive)
 template<typename T>
 int ci_find_substr(const T& str1, const T& str2, const std::locale& loc = std::locale())
@@ -129,7 +156,7 @@ int ci_find_substr(const T& str1, const T& str2, const std::locale& loc = std::l
 void remStr(std::string &out, const std::string &toRem)
 {
     auto pos = ci_find_substr(out, toRem);
-    if (pos != std::string::npos)
+    if ((decltype(std::string::npos))pos != std::string::npos)
     {
         out.erase(pos, toRem.size());
     }
@@ -154,10 +181,17 @@ void trim(std::string &out)
     }
 }
 
+
 #define SCREEN_W 1920
 #define SCREEN_H 1080
+
+#if defined(__GNUC__)
+#define REAL_SCREEN_W (SCREEN_W / 2)
+#define REAL_SCREEN_H (SCREEN_H / 2)
+#else
 #define REAL_SCREEN_W (SCREEN_W * 2 / 3)
 #define REAL_SCREEN_H (SCREEN_H * 2 / 3)
+#endif
 //#define REAL_SCREEN_W SCREEN_W
 //#define REAL_SCREEN_H SCREEN_H
 
@@ -189,8 +223,8 @@ GLuint createTextureFromFile(const std::string &filename)
 {
     std::vector<unsigned char> image; //the raw pixels (holy crap that must be slow)
     unsigned int w, h;
-    auto ret = lodepng::decode(image, w, h, filename);
-    byte* in_pData = &(image[0]);
+    lodepng::decode(image, w, h, filename);
+    uint8_t* in_pData = &(image[0]);
 
     // Pre multiplied
     auto pData = in_pData;
@@ -264,7 +298,7 @@ void startTextureLoader()
                 }
                 else
                 {
-                    auto ret = lodepng::decode(imageData, w, h, loadRequest.filename);
+                    lodepng::decode(imageData, w, h, loadRequest.filename);
                 }
 
                 // Pre multiplied
@@ -743,7 +777,7 @@ void draw()
     // Background
     glDisable(GL_BLEND);
     glBindTexture(GL_TEXTURE_2D, texBackground);
-    glColor3ub(colors[option_color].r, colors[option_color].g, colors[option_color].b);
+  /*  glColor3ub(colors[option_color].r, colors[option_color].g, colors[option_color].b);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex2f(0, 0);
@@ -753,13 +787,13 @@ void draw()
     glVertex2f(SCREEN_W, SCREEN_H);
     glTexCoord2f(1, 0);
     glVertex2f(SCREEN_W, 0);
-    glEnd();
+    glEnd();*/
 
     // Side menu selection
     if (menuHighlighted != -1)
     {
         glDisable(GL_TEXTURE_2D);
-        glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
+     /*   glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
         glBegin(GL_QUADS);
         glTexCoord2f(0, 0);
         glVertex2f(0, 304 + 130 * (float)menuHighlighted - 20);
@@ -769,7 +803,7 @@ void draw()
         glVertex2f(0 + SIDE_BAR_SIZE, 304 + 108 + 130 * (float)menuHighlighted - 20);
         glTexCoord2f(1, 0);
         glVertex2f(0 + SIDE_BAR_SIZE, 304 + 130 * (float)menuHighlighted - 20);
-        glEnd();
+        glEnd();*/
     }
 
     // Shadow + main view
@@ -777,7 +811,7 @@ void draw()
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    glBegin(GL_QUADS);
+ /*   glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex2f(SIDE_BAR_SIZE, 0);
     glTexCoord2f(0, 1);
@@ -786,7 +820,7 @@ void draw()
     glVertex2f(SCREEN_W, SCREEN_H);
     glTexCoord2f((SCREEN_W - SIDE_BAR_SIZE) / 16.f, 0);
     glVertex2f(SCREEN_W, 0);
-    glEnd();
+    glEnd();*/
 
 #if _DEBUG
     static int anim = 0;
@@ -805,7 +839,7 @@ void draw()
 
     // Side menu icons
     glBindTexture(GL_TEXTURE_2D, texIcons[MENU_GAMES]);
-    if (menuSelected == MENU_GAMES) glColor3ub(255, 255, 255);
+ /*   if (menuSelected == MENU_GAMES) glColor3ub(255, 255, 255);
     else glColor3ub(0, 0, 0);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
@@ -816,9 +850,9 @@ void draw()
     glVertex2f(38 + 68, 304 + 68);
     glTexCoord2f(1, 0);
     glVertex2f(38 + 68, 304);
-    glEnd();
+    glEnd();*/
     glBindTexture(GL_TEXTURE_2D, texMenuText[MENU_GAMES]);
-    glBegin(GL_QUADS);
+  /*  glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex2f(126, 304);
     glTexCoord2f(0, 1);
@@ -827,10 +861,10 @@ void draw()
     glVertex2f(126 + 334, 304 + 68);
     glTexCoord2f(1, 0);
     glVertex2f(126 + 334, 304);
-    glEnd();
+    glEnd();*/
 
     glBindTexture(GL_TEXTURE_2D, texIcons[MENU_RECENTS]);
-    if (menuSelected == MENU_RECENTS) glColor3ub(255, 255, 255);
+ /*   if (menuSelected == MENU_RECENTS) glColor3ub(255, 255, 255);
     else glColor3ub(0, 0, 0);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
@@ -841,9 +875,9 @@ void draw()
     glVertex2f(38 + 68, 434 + 68);
     glTexCoord2f(1, 0);
     glVertex2f(38 + 68, 434);
-    glEnd();
+    glEnd();*/
     glBindTexture(GL_TEXTURE_2D, texMenuText[MENU_RECENTS]);
-    glBegin(GL_QUADS);
+  /*  glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex2f(126, 434);
     glTexCoord2f(0, 1);
@@ -852,10 +886,10 @@ void draw()
     glVertex2f(126 + 334, 434 + 68);
     glTexCoord2f(1, 0);
     glVertex2f(126 + 334, 434);
-    glEnd();
+    glEnd();*/
 
     glBindTexture(GL_TEXTURE_2D, texIcons[MENU_SEARCH]);
-    if (menuSelected == MENU_SEARCH) glColor3ub(255, 255, 255);
+  /*  if (menuSelected == MENU_SEARCH) glColor3ub(255, 255, 255);
     else glColor3ub(0, 0, 0);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
@@ -866,9 +900,9 @@ void draw()
     glVertex2f(38 + 68, 564 + 68);
     glTexCoord2f(1, 0);
     glVertex2f(38 + 68, 564);
-    glEnd();
+    glEnd();*/
     glBindTexture(GL_TEXTURE_2D, texMenuText[MENU_SEARCH]);
-    glBegin(GL_QUADS);
+  /*  glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex2f(126, 564);
     glTexCoord2f(0, 1);
@@ -877,10 +911,10 @@ void draw()
     glVertex2f(126 + 334, 564 + 68);
     glTexCoord2f(1, 0);
     glVertex2f(126 + 334, 564);
-    glEnd();
+    glEnd();*/
 
     glBindTexture(GL_TEXTURE_2D, texIcons[MENU_OPTIONS]);
-    if (menuSelected == MENU_OPTIONS) glColor3ub(255, 255, 255);
+ /*   if (menuSelected == MENU_OPTIONS) glColor3ub(255, 255, 255);
     else glColor3ub(0, 0, 0);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
@@ -891,9 +925,9 @@ void draw()
     glVertex2f(38 + 68, 694 + 68);
     glTexCoord2f(1, 0);
     glVertex2f(38 + 68, 694);
-    glEnd();
+    glEnd();*/
     glBindTexture(GL_TEXTURE_2D, texMenuText[MENU_OPTIONS]);
-    glBegin(GL_QUADS);
+/*    glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex2f(126, 694);
     glTexCoord2f(0, 1);
@@ -902,13 +936,13 @@ void draw()
     glVertex2f(126 + 334, 694 + 68);
     glTexCoord2f(1, 0);
     glVertex2f(126 + 334, 694);
-    glEnd();
+    glEnd();*/
 
     // Draw search text
     if (menuSelected == MENU_SEARCH)
     {
         glDisable(GL_TEXTURE_2D);
-        glColor4f(0, 0, 0, .4f);
+   /*     glColor4f(0, 0, 0, .4f);
         glBegin(GL_QUADS);
         {
             glVertex2f(38, 64);
@@ -937,14 +971,14 @@ void draw()
             glVertex2f(SIDE_BAR_SIZE - 38 + 4, 64 + 68 + 3);
             glVertex2f(SIDE_BAR_SIZE - 38 + 4, 64 + 68);
         }
-        glEnd();
+        glEnd();*/
         glEnable(GL_TEXTURE_2D);
-        glColor3ub(255, 255, 255);
+     //   glColor3ub(255, 255, 255);
         if (texSearchText)
         {
             markTextureUse(texSearchText);
             glBindTexture(GL_TEXTURE_2D, texSearchText);
-            glBegin(GL_QUADS);
+        /*    glBegin(GL_QUADS);
             glTexCoord2f(0, 0);
             glVertex2f(38, 64);
             glTexCoord2f(0, 1);
@@ -953,7 +987,7 @@ void draw()
             glVertex2f(SIDE_BAR_SIZE - 38, 64 + 68);
             glTexCoord2f(1, 0);
             glVertex2f(SIDE_BAR_SIZE - 38, 64);
-            glEnd();
+            glEnd();*/
         }
         if (texSearchText == 0 ||
             searchText != oldSearchText)
@@ -981,7 +1015,7 @@ void draw()
         glEnable(GL_TEXTURE_2D);
         for (int i = 0; i < 12; ++i)
         {
-            glColor3ub(colors[i].r, colors[i].g, colors[i].b);
+       /*     glColor3ub(colors[i].r, colors[i].g, colors[i].b);
             glBegin(GL_QUADS);
             glTexCoord2f(0, 0);
             glVertex2f(SIDE_BAR_SIZE + 134 + (float)(i % 6) * 205, 144 + (float)(i / 6) * 113);
@@ -991,12 +1025,12 @@ void draw()
             glVertex2f(SIDE_BAR_SIZE + 134 + 186 + (float)(i % 6) * 205, 144 + 109 + (float)(i / 6) * 113);
             glTexCoord2f(1, 0);
             glVertex2f(SIDE_BAR_SIZE + 134 + 186 + (float)(i % 6) * 205, 144 + (float)(i / 6) * 113);
-            glEnd();
+            glEnd();*/
             if (option_color == i)
             {
-                glColor3ub(255, 255, 255);
+           //     glColor3ub(255, 255, 255);
                 glDisable(GL_TEXTURE_2D);
-                glBegin(GL_QUADS);
+            /*    glBegin(GL_QUADS);
                 {
                     glVertex2f(SIDE_BAR_SIZE + 134 + (float)(i % 6) * 205,
                                144 + (float)(i / 6) * 113);
@@ -1034,7 +1068,7 @@ void draw()
                     glVertex2f(SIDE_BAR_SIZE + 134 + 170 + (float)(i % 6) * 205,
                                144 + 80 + (float)(i / 6) * 113 - 5);
                 }
-                glEnd();
+                glEnd();*/
                 glEnable (GL_TEXTURE_2D);
             }
             if (selectedGame[menuSelected] == i &&
@@ -1045,9 +1079,9 @@ void draw()
                 {
                     padding = 6;
                 }
-                glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
+            //    glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
                 glDisable(GL_TEXTURE_2D);
-                glBegin(GL_QUADS);
+             /*   glBegin(GL_QUADS);
                 {
                     glVertex2f(SIDE_BAR_SIZE + 134 + (float)(i % 6) * 205 - padding,
                                144 + (float)(i / 6) * 113 - padding);
@@ -1085,7 +1119,7 @@ void draw()
                     glVertex2f(SIDE_BAR_SIZE + 134 + 170 + (float)(i % 6) * 205,
                                144 + 80 + (float)(i / 6) * 113);
                 }
-                glEnd();
+                glEnd();*/
                 glEnable (GL_TEXTURE_2D);
             }
         }
@@ -1096,9 +1130,9 @@ void draw()
     if (menuSelected == MENU_RECENTS &&
         recents.empty())
     {
-        glColor3ub(255, 255, 255);
+     //   glColor3ub(255, 255, 255);
         glBindTexture(GL_TEXTURE_2D, texNoRecent);
-        glBegin(GL_QUADS);
+     /*   glBegin(GL_QUADS);
         glTexCoord2f(0, 0);
         glVertex2f(SIDE_BAR_SIZE + (SCREEN_W - SIDE_BAR_SIZE) / 2 - 400 / 2, SCREEN_H / 2 - 68 / 2);
         glTexCoord2f(0, 1);
@@ -1107,11 +1141,11 @@ void draw()
         glVertex2f(SIDE_BAR_SIZE + (SCREEN_W - SIDE_BAR_SIZE) / 2 - 400 / 2 + 400, SCREEN_H / 2 - 68 / 2 + 68);
         glTexCoord2f(1, 0);
         glVertex2f(SIDE_BAR_SIZE + (SCREEN_W - SIDE_BAR_SIZE) / 2 - 400 / 2 + 400, SCREEN_H / 2 - 68 / 2);
-        glEnd();
+        glEnd();*/
     }
     if (menuSelected < MENU_OPTIONS)
     {
-        glColor3ub(255, 255, 255);
+     //   glColor3ub(255, 255, 255);
 
         if (menuSelected == MENU_SEARCH)
         {
@@ -1122,7 +1156,7 @@ void draw()
                 if (c == selectedGame[MENU_SEARCH] &&
                     menuHighlighted == -1)
                 {
-                    glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
+                //    glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
                     glDisable(GL_TEXTURE_2D);
                     float offset = 8;
                     if (pGamePad->isPressed(onut::GamePad::eGamePad::A))
@@ -1131,7 +1165,7 @@ void draw()
                     }
                     if (c == 36)
                     {
-                        glBegin(GL_QUADS);
+                    /*    glBegin(GL_QUADS);
                         glVertex2f(64 + SIDE_BAR_SIZE + (float)(c % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING - offset,
                                    (float)(c / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 - offset);
                         glVertex2f(64 + SIDE_BAR_SIZE + (float)(c % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING - offset,
@@ -1140,11 +1174,11 @@ void draw()
                                    (float)(c / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 + 64 + offset);
                         glVertex2f(64 + SIDE_BAR_SIZE + (float)(c % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 + KEYBOARD_SPACING + offset,
                                    (float)(c / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 - offset);
-                        glEnd();
+                        glEnd();*/
                     }
                     else if (c == 37)
                     {
-                        glBegin(GL_QUADS);
+                    /*    glBegin(GL_QUADS);
                         glVertex2f(64 + SIDE_BAR_SIZE + (float)((c + 1) % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING - offset,
                                    (float)((c + 1) / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 - offset);
                         glVertex2f(64 + SIDE_BAR_SIZE + (float)((c + 1) % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING - offset,
@@ -1153,11 +1187,11 @@ void draw()
                                    (float)((c + 1) / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 + 64 + offset);
                         glVertex2f(64 + SIDE_BAR_SIZE + (float)((c + 1) % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 + offset,
                                    (float)((c + 1) / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 - offset);
-                        glEnd();
+                        glEnd();*/
                     }
                     else
                     {
-                        glBegin(GL_QUADS);
+                   /*     glBegin(GL_QUADS);
                         glVertex2f(64 + SIDE_BAR_SIZE + (float)(c % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING - offset,
                                    (float)(c / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 - offset);
                         glVertex2f(64 + SIDE_BAR_SIZE + (float)(c % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING - offset,
@@ -1166,26 +1200,26 @@ void draw()
                                    (float)(c / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 + 64 + offset);
                         glVertex2f(64 + SIDE_BAR_SIZE + (float)(c % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 + offset,
                                    (float)(c / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 - offset);
-                        glEnd();
+                        glEnd();*/
                     }
                     if (pGamePad->isPressed(onut::GamePad::eGamePad::A))
                     {
-                        glColor3ub(0, 0, 0);
+                    //    glColor3ub(0, 0, 0);
                     }
                     else
                     {
-                        glColor3ub(255, 255, 255);
+                    //    glColor3ub(255, 255, 255);
                     }
                     glEnable(GL_TEXTURE_2D);
                 }
                 else
                 {
-                    glColor3ub(255, 255, 255);
+                //    glColor3ub(255, 255, 255);
                 }
                 glBindTexture(GL_TEXTURE_2D, texSearchKeyboard[c]);
                 if (c == 36)
                 {
-                    glBegin(GL_QUADS);
+                 /*   glBegin(GL_QUADS);
                     glTexCoord2f(0, 0);
                     glVertex2f(64 + SIDE_BAR_SIZE + (float)(c % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING, (float)(c / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64);
                     glTexCoord2f(0, 1);
@@ -1194,11 +1228,11 @@ void draw()
                     glVertex2f(64 + SIDE_BAR_SIZE + (float)(c % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 + KEYBOARD_SPACING, (float)(c / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 + 64);
                     glTexCoord2f(1, 0);
                     glVertex2f(64 + SIDE_BAR_SIZE + (float)(c % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 + KEYBOARD_SPACING, (float)(c / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64);
-                    glEnd();
+                    glEnd();*/
                 }
                 else if (c == 37)
                 {
-                    glBegin(GL_QUADS);
+                 /*   glBegin(GL_QUADS);
                     glTexCoord2f(0, 0);
                     glVertex2f(64 + SIDE_BAR_SIZE + (float)((c + 1) % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING, (float)((c + 1) / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64);
                     glTexCoord2f(0, 1);
@@ -1207,11 +1241,11 @@ void draw()
                     glVertex2f(64 + SIDE_BAR_SIZE + (float)((c + 1) % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64, (float)((c + 1) / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 + 64);
                     glTexCoord2f(1, 0);
                     glVertex2f(64 + SIDE_BAR_SIZE + (float)((c + 1) % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64, (float)((c + 1) / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64);
-                    glEnd();
+                    glEnd();*/
                 }
                 else
                 {
-                    glBegin(GL_QUADS);
+                 /*   glBegin(GL_QUADS);
                     glTexCoord2f(0, 0);
                     glVertex2f(64 + SIDE_BAR_SIZE + (float)(c % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING, (float)(c / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64);
                     glTexCoord2f(0, 1);
@@ -1220,7 +1254,7 @@ void draw()
                     glVertex2f(64 + SIDE_BAR_SIZE + (float)(c % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64, (float)(c / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64 + 64);
                     glTexCoord2f(1, 0);
                     glVertex2f(64 + SIDE_BAR_SIZE + (float)(c % KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64, (float)(c / KEYBOARD_COL_COUNT) * KEYBOARD_SPACING + 64);
-                    glEnd();
+                    glEnd();*/
                 }
             }
         }
@@ -1265,7 +1299,7 @@ void draw()
             if (pGame->texture)
             {
                 glBindTexture(GL_TEXTURE_2D, texGameShadow);
-                glBegin(GL_QUADS);
+             /*   glBegin(GL_QUADS);
                 glTexCoord2f(0, 0);
                 glVertex2f(534 + (float)x * 686, 50 + (float)y * 472);
                 glTexCoord2f(0, 1);
@@ -1274,20 +1308,20 @@ void draw()
                 glVertex2f(534 + 666 + (float)x * 686, 50 + 394 + (float)y * 472);
                 glTexCoord2f(1, 0);
                 glVertex2f(534 + 666 + (float)x * 686, 50 + (float)y * 472);
-                glEnd();
+                glEnd();*/
             }
             if (menuHighlighted == -1 && selectedId == i)
             {
-                glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
+           //     glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
                 glDisable(GL_TEXTURE_2D);
-                glBegin(GL_QUADS);
+          /*      glBegin(GL_QUADS);
                 glVertex2f(534 + (float)x * 686 - 12, 50 + (float)y * 472 - 12);
                 glVertex2f(534 + (float)x * 686 - 12, 50 + 384 + (float)y * 472 + 78);
                 glVertex2f(534 + 652 + (float)x * 686 + 12, 50 + 384 + (float)y * 472 + 78);
                 glVertex2f(534 + 652 + (float)x * 686 + 12, 50 + (float)y * 472 - 12);
-                glEnd();
+                glEnd();*/
                 glEnable(GL_TEXTURE_2D);
-                glColor3ub(255, 255, 255);
+          //      glColor3ub(255, 255, 255);
 
                 // Draw text
                 if (pGame->textTexture == 0)
@@ -1307,9 +1341,9 @@ void draw()
                 }
                 else
                 {
-                    glColor3ub(0, 0, 0);
+              //      glColor3ub(0, 0, 0);
                     glBindTexture(GL_TEXTURE_2D, pGame->textTexture);
-                    glBegin(GL_QUADS);
+              /*      glBegin(GL_QUADS);
                     glTexCoord2f(0, 0);
                     glVertex2f(534 + (float)x * 686, 50 + (float)y * 472 + 384);
                     glTexCoord2f(0, 1);
@@ -1319,7 +1353,7 @@ void draw()
                     glTexCoord2f(1, 0);
                     glVertex2f(534 + 652 + (float)x * 686, 50 + (float)y * 472 + 384);
                     glEnd();
-                    glColor3ub(255, 255, 255);
+                    glColor3ub(255, 255, 255);*/
                 }
             }
             if (pGame->texture == 0)
@@ -1341,7 +1375,7 @@ void draw()
             {
                 markTextureUse(pGame->texture);
                 glBindTexture(GL_TEXTURE_2D, pGame->texture);
-                glBegin(GL_QUADS);
+             /*   glBegin(GL_QUADS);
                 glTexCoord2f(0, 0);
                 glVertex2f(534 + (float)x * 686, 50 + (float)y * 472);
                 glTexCoord2f(0, 1);
@@ -1350,7 +1384,7 @@ void draw()
                 glVertex2f(534 + 652 + (float)x * 686, 50 + 384 + (float)y * 472);
                 glTexCoord2f(1, 0);
                 glVertex2f(534 + 652 + (float)x * 686, 50 + (float)y * 472);
-                glEnd();
+                glEnd();*/
             }
 
             x = (x + 1) % COL_COUNT;
@@ -1364,19 +1398,12 @@ void draw()
         glPopMatrix();
     }
 
+#if defined(__GNUC__)
+    eglSwapBuffers(display, surface);
+#else
     SwapBuffers(hDC);
+#endif
 }
-
-// templated version of my_equal so it could work with both char and wchar_t
-template<typename charT>
-struct my_equal
-{
-    my_equal() {}
-    bool operator()(charT ch1, charT ch2)
-    {
-        return ::toupper(ch1) == ::toupper(ch2);
-    }
-};
 
 void loadResources()
 {
@@ -1394,11 +1421,11 @@ void loadResources()
 
     dfr::init();
     texMenuText[MENU_GAMES] = createText(L"Jeux", 334, 68, 48);
-    texMenuText[MENU_RECENTS] = createText(L"Récents", 334, 68, 48);
+    texMenuText[MENU_RECENTS] = createText(L"RÃ©cents", 334, 68, 48);
     texMenuText[MENU_SEARCH] = createText(L"Recherche", 334, 68, 48);
-    texMenuText[MENU_OPTIONS] = createText(L"Paramètres", 334, 68, 48);
+    texMenuText[MENU_OPTIONS] = createText(L"ParamÃ¨tres", 334, 68, 48);
 
-    texNoRecent = createText(L"Aucun jeu joué récemment", 400, 68, 48, dfr::eAlign::ALIGN_CENTER);
+    texNoRecent = createText(L"Aucun jeu jouÃ© rÃ©cemment", 400, 68, 48, dfr::eAlign::ALIGN_CENTER);
 
     for (auto c = 'A'; c <= 'Z'; ++c)
     {
@@ -1431,7 +1458,11 @@ void loadResources()
 
             auto len = strlen(ent->d_name);
             if (len < 5) continue;
+#if defined(__GNUC__)
+            else if (strcasecmp(ent->d_name + len - 4, ".nes"))
+#else
             else if (_stricmp(ent->d_name + len - 4, ".nes"))
+#endif
             {
                 continue;
             }
@@ -1512,6 +1543,7 @@ void loadResources()
     }
 }
 
+#if !defined(__GNUC__)
 LRESULT CALLBACK WinProc(HWND handle, UINT msg, WPARAM wparam, LPARAM lparam)
 {
     if (msg == WM_DESTROY ||
@@ -1523,14 +1555,100 @@ LRESULT CALLBACK WinProc(HWND handle, UINT msg, WPARAM wparam, LPARAM lparam)
 
     return DefWindowProc(handle, msg, wparam, lparam);
 }
+#endif
 
+#if defined(__GNUC__)
+int main()
+#else
 int CALLBACK WinMain(
     _In_  HINSTANCE hInstance,
     _In_  HINSTANCE hPrevInstance,
     _In_  LPSTR lpCmdLine,
     _In_  int nCmdShow
     )
+#endif
 {
+#if defined(__GNUC__)
+    bcm_host_init();
+    
+    EGLBoolean result;
+    EGLint num_config;
+
+    static EGL_DISPMANX_WINDOW_T nativewindow;
+
+    DISPMANX_ELEMENT_HANDLE_T dispman_element;
+    DISPMANX_DISPLAY_HANDLE_T dispman_display;
+    DISPMANX_UPDATE_HANDLE_T dispman_update;
+    VC_RECT_T dst_rect;
+    VC_RECT_T src_rect;
+
+    static const EGLint attribute_list[] =
+    {
+        EGL_RED_SIZE, 8,
+        EGL_GREEN_SIZE, 8,
+        EGL_BLUE_SIZE, 8,
+        EGL_ALPHA_SIZE, 8,
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_NONE
+    };
+
+    EGLConfig config;
+
+    // get an EGL display connection
+    display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    assert(display != EGL_NO_DISPLAY);
+
+    // initialize the EGL display connection
+    result = eglInitialize(display, NULL, NULL);
+    assert(EGL_FALSE != result);
+
+    // get an appropriate EGL frame buffer configuration
+    result = eglChooseConfig(display, attribute_list, &config, 1, &num_config);
+    assert(EGL_FALSE != result);
+
+    // create an EGL rendering context
+    context = eglCreateContext(display, config, EGL_NO_CONTEXT, NULL);
+    assert(context != EGL_NO_CONTEXT);
+
+    // create an EGL window surface
+
+    dst_rect.x = 0;
+    dst_rect.y = 0;
+    dst_rect.width = REAL_SCREEN_W;
+    dst_rect.height = REAL_SCREEN_H;
+
+    src_rect.x = 0;
+    src_rect.y = 0;
+    src_rect.width = REAL_SCREEN_W << 16;
+    src_rect.height = REAL_SCREEN_H << 16;        
+
+    dispman_display = vc_dispmanx_display_open(0 /* LCD */);
+    dispman_update = vc_dispmanx_update_start(0);
+     
+    dispman_element = vc_dispmanx_element_add(dispman_update, dispman_display,
+        0/*layer*/, &dst_rect, 0/*src*/,
+        &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, (DISPMANX_TRANSFORM_T)0/*transform*/);
+
+    nativewindow.element = dispman_element;
+    nativewindow.width = SCREEN_W;
+    nativewindow.height = SCREEN_H;
+    vc_dispmanx_update_submit_sync(dispman_update);
+
+    surface = eglCreateWindowSurface(display, config, &nativewindow, NULL);
+    assert(surface != EGL_NO_SURFACE);
+
+    // connect the context to the surface
+    result = eglMakeCurrent(display, surface, surface, context);
+    assert(EGL_FALSE != result);
+
+    // Set background color and clear buffers
+    glClearColor(0.15f, 0.25f, 0.35f, 1.0f);
+
+    // Enable back face culling.
+    glEnable(GL_CULL_FACE);
+
+    glMatrixMode(GL_MODELVIEW);
+#else
     // Create window
     WNDCLASS wc = {0};
     wc.style = CS_OWNDC;    // CS_HREDRAW | CS_VREDRAW | CS_OWNDC
@@ -1579,20 +1697,45 @@ int CALLBACK WinMain(
     ShowWindow(hWnd, SW_SHOW);  // Show The Window
     SetForegroundWindow(hWnd);  // Slightly Higher Priority
     SetFocus(hWnd);             // Sets Keyboard Focus To The Window
+#endif
+
+    printf("Initialized\n");
+    
+    while (true)
+    {
+        glClear(GL_COLOR_BUFFER_BIT);
+        eglSwapBuffers(display, surface);
+    }
+    
+    return 0;
 
     loadResources();
 
     // Setup states
-    glDisable(GL_ALL_ATTRIB_BITS);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_ALPHA_TEST);
     glEnable(GL_TEXTURE_2D);
     glViewport(0, 0, REAL_SCREEN_W, REAL_SCREEN_H);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glOrtho(0, SCREEN_W, SCREEN_H, 0, -999, 999);
+    //glOrtho(0, SCREEN_W, SCREEN_H, 0, -999, 999);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
     // Main loop
+#if defined(__GNUC__)
+    while (!bDone)
+    {
+        mainLoopMutex.lock();
+        if (update())
+        {
+            draw();
+        }
+        mainLoopMutex.unlock();
+    }
+#else
     MSG msg = {0};
     while (true)
     {
@@ -1614,7 +1757,7 @@ int CALLBACK WinMain(
         }
         mainLoopMutex.unlock();
     }
-
+#endif
     bDone = true;
 
     // Save recents

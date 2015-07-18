@@ -1,5 +1,29 @@
 #include "GamePad.h"
 #include <math.h>
+#if defined(__GNUC__)
+#include <memory.h>
+#endif
+
+#if defined(__GNUC__)
+#define XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE  7849
+#define XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE 8689
+#define XINPUT_GAMEPAD_TRIGGER_THRESHOLD    30
+
+#define XINPUT_GAMEPAD_DPAD_UP	        0x0001
+#define XINPUT_GAMEPAD_DPAD_DOWN	    0x0002
+#define XINPUT_GAMEPAD_DPAD_LEFT	    0x0004
+#define XINPUT_GAMEPAD_DPAD_RIGHT	    0x0008
+#define XINPUT_GAMEPAD_START	        0x0010
+#define XINPUT_GAMEPAD_BACK	            0x0020
+#define XINPUT_GAMEPAD_LEFT_THUMB	    0x0040
+#define XINPUT_GAMEPAD_RIGHT_THUMB	    0x0080
+#define XINPUT_GAMEPAD_LEFT_SHOULDER	0x0100
+#define XINPUT_GAMEPAD_RIGHT_SHOULDER	0x0200
+#define XINPUT_GAMEPAD_A	            0x1000
+#define XINPUT_GAMEPAD_B	            0x2000
+#define XINPUT_GAMEPAD_X	            0x4000
+#define XINPUT_GAMEPAD_Y	            0x8000
+#endif
 
 namespace onut
 {
@@ -14,8 +38,12 @@ namespace onut
     {
         m_previousState = m_currentState;
         memset(&m_currentState, 0, sizeof(m_currentState));
+#if defined(__GNUC__)
+        m_isConnected = false;
+#else
         auto result = XInputGetState(m_index, &m_currentState);
         m_isConnected = result == ERROR_SUCCESS;
+#endif
 
         // Update thumbs
         {

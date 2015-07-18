@@ -27,6 +27,7 @@
 *.out
 *.app
 Thumbs.db
+NESPI
 
 # Folders
 Debug/

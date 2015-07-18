@@ -1,11 +1,15 @@
 #include "dfr.h"
-#include <ft2build.h>
+#include "ft2build.h"
 #include FT_FREETYPE_H
 #include <assert.h>
 #include <map>
 #include <vector>
 #include <locale>
+#if defined(__GNUC__)
+#include <iconv.h>
+#else
 #include <codecvt>
+#endif
 #include <mutex>
 
 namespace dfr {
@@ -35,10 +39,21 @@ namespace dfr {
 		const sFont& in_font,
 		const sFormating& in_formating,
 		const sColor& in_color) {
-
+#if defined(__GNUC__)
+		const char *src = in_text.c_str();
+		size_t srclen = in_text.size();
+		wchar_t *dst = new wchar_t[srclen + 1];
+		size_t dstlen = srclen * 2 + 2;
+		iconv_t conv = iconv_open("UTF-16", "UTF-8");
+		size_t convertedSize = iconv(conv, (char**)&src, &srclen, (char**)&dst, &dstlen);
+		iconv_close(conv);
+		dst[convertedSize / 2] = L'\0';
+		std::wstring wText = dst;
+		delete [] dst;
+#else
 		std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 		std::wstring wText = converter.from_bytes(in_text);
-
+#endif
 		return drawText(wText, in_outputImage, in_font, in_formating, in_color);
 	}
 
@@ -91,8 +106,6 @@ namespace dfr {
 			int lineHeight = face->size->metrics.height >> 6;
 			int maxW = 0;
 			pen = { 0, 0 };
-			int alignOffsetX = 0;
-			int alignOffsetY = 0;
 			int lastWordStart = -1;
 			int lastWordWidth = 0;
 			std::vector<sLine> lines;
@@ -295,7 +308,7 @@ namespace dfr {
 					else ++n;
 				}
 				++lineCpt;
-				if (lineCpt < (int) lines.size()) {
+				if (lineCpt < (size_t)lines.size()) {
 					pen.y += lineHeight;
 				}
 			}

@@ -1,6 +1,27 @@
 #pragma once
+#if defined(__GNUC__)
+#include <cinttypes>
+#else
 #include <Windows.h>
 #include <Xinput.h>
+#endif
+
+#if defined(__GNUC__)
+typedef struct _XINPUT_GAMEPAD {
+  uint16_t  wButtons;
+  uint8_t   bLeftTrigger;
+  uint8_t   bRightTrigger;
+  int16_t   sThumbLX;
+  int16_t   sThumbLY;
+  int16_t   sThumbRX;
+  int16_t   sThumbRY;
+} XINPUT_GAMEPAD;
+
+typedef struct _XINPUT_STATE {
+  uint32_t       dwPacketNumber;
+  XINPUT_GAMEPAD Gamepad;
+} XINPUT_STATE;
+#endif
 
 namespace onut
 {
