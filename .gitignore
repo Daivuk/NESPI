@@ -26,6 +26,7 @@
 *.exe
 *.out
 *.app
+Thumbs.db
 
 # Folders
 Debug/
