@@ -42,14 +42,21 @@ namespace dfr {
 #if defined(__GNUC__)
 		const char *src = in_text.c_str();
 		size_t srclen = in_text.size();
-		wchar_t *dst = new wchar_t[srclen + 1];
-		size_t dstlen = srclen * 2 + 2;
+		wchar_t *dst = new wchar_t[srclen * 2 + 1];
+		memset(dst, 0, sizeof(wchar_t) * srclen * 2 + 1);
+		auto pOriginalDst = dst;
+		size_t dstlen = (srclen * 2 + 1) * 2;
 		iconv_t conv = iconv_open("UTF-16", "UTF-8");
-		size_t convertedSize = iconv(conv, (char**)&src, &srclen, (char**)&dst, &dstlen);
+		iconv(conv, (char**)&src, &srclen, (char**)&dst, &dstlen);
+		for (decltype(wcslen(0)) i = 0; i < wcslen(pOriginalDst); ++i)
+		{
+		    char c = (char)pOriginalDst[i];
+		    printf("%c", c);
+		}
+		printf("\n");
 		iconv_close(conv);
-		dst[convertedSize / 2] = L'\0';
-		std::wstring wText = dst;
-		delete [] dst;
+		std::wstring wText = pOriginalDst;
+		delete [] pOriginalDst;
 #else
 		std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 		std::wstring wText = converter.from_bytes(in_text);
@@ -106,8 +113,6 @@ namespace dfr {
 			int lineHeight = face->size->metrics.height >> 6;
 			int maxW = 0;
 			pen = { 0, 0 };
-			int alignOffsetX = 0;
-			int alignOffsetY = 0;
 			int lastWordStart = -1;
 			int lastWordWidth = 0;
 			std::vector<sLine> lines;

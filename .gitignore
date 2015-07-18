@@ -38,3 +38,6 @@ Release/
 *.opensdf
 *.user
 
+# Linux crap
+*~
+
