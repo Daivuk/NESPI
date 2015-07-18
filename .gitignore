@@ -26,3 +26,13 @@
 *.exe
 *.out
 *.app
+
+# Folders
+Debug/
+Release/
+
+# VS
+*.sdf
+*.opensdf
+*.user
+

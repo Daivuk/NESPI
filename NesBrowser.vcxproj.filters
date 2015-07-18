@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="LodePNG.cpp" />
+    <ClCompile Include="dfr.cpp" />
+    <ClCompile Include="GamePad.cpp" />
+    <ClCompile Include="color.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="LodePNG.h" />
+    <ClInclude Include="dfr.h" />
+    <ClInclude Include="GamePad.h" />
+    <ClInclude Include="color.h" />
+  </ItemGroup>
+</Project>
