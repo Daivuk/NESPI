@@ -76,11 +76,18 @@ namespace onut
     private:
         bool isPressed(eGamePad button, const XINPUT_STATE& state) const;
 
+#if defined(__GNUC__)
+        XINPUT_STATE    m_accumState;
+#endif
         XINPUT_STATE    m_currentState;
         XINPUT_STATE    m_previousState;
         Vector2         m_cachedLeftThumb;
         Vector2         m_cachedRightThumb;
         int             m_index = 0;
         bool            m_isConnected = false;
+        
+#if defined(__GNUC__)
+        int             m_fileDescriptor;
+#endif
     };
 };
