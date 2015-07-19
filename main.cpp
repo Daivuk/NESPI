@@ -1528,12 +1528,20 @@ void loadResources()
     texIcons[MENU_OPTIONS] = createTextureFromFile("iconOptions.png");
 
     dfr::init();
+#if defined(__GNUC__)
     texMenuText[MENU_GAMES] = createText(L"Jeux", 334, 68, 48);
     texMenuText[MENU_RECENTS] = createText(L"Récents", 334, 68, 48);
     texMenuText[MENU_SEARCH] = createText(L"Recherche", 334, 68, 48);
     texMenuText[MENU_OPTIONS] = createText(L"Paramètres", 334, 68, 48);
-
     texNoRecent = createText(L"Aucun jeu joué récemment", 400, 68, 48, dfr::eAlign::ALIGN_CENTER);
+#else
+    texMenuText[MENU_GAMES] = createText("Jeux", 334, 68, 48);
+    texMenuText[MENU_RECENTS] = createText("Récents", 334, 68, 48);
+    texMenuText[MENU_SEARCH] = createText("Recherche", 334, 68, 48);
+    texMenuText[MENU_OPTIONS] = createText("Paramètres", 334, 68, 48);
+    texNoRecent = createText("Aucun jeu joué récemment", 400, 68, 48, dfr::eAlign::ALIGN_CENTER);
+#endif
+
 
     for (auto c = L'A'; c <= L'Z'; ++c)
     {
