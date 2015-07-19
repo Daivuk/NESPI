@@ -69,7 +69,7 @@ sVertex currentVertex;
 sVertex vertices[MAX_SB_VERTICES];
 int nCurrentVertex = 0;
 
-void glColor3f(float r, float g, float b)
+void NESPI_glColor3f(float r, float g, float b)
 {
     currentVertex.r = r;
     currentVertex.g = g;
@@ -85,9 +85,9 @@ void NESPI_glColor4f(float r, float g, float b, float a)
     currentVertex.a = a;
 }
 
-void glColor3ub(uint8_t r, uint8_t g, uint8_t b)
+void NESPI_glColor3ub(uint8_t r, uint8_t g, uint8_t b)
 {
-    glColor3f((float)r / 255.f, (float)g / 255.f, (float)b / 255.f);
+    NESPI_glColor3f((float)r / 255.f, (float)g / 255.f, (float)b / 255.f);
 }
 
 #define GL_QUADS 1
@@ -155,6 +155,8 @@ void glVertex2f(float x, float y)
 }
 #else
 #define NESPI_glColor4f glColor4f
+#define NESPI_glColor3f glColor3f
+#define NESPI_glColor3ub glColor3ub
 #endif
 
 RgbColor colors[12] = {
@@ -309,8 +311,9 @@ void trim(std::string &out)
 
 GLuint createTextureFromData(uint8_t *pData, int w, int h)
 {
-    GLuint texture;
+    GLuint texture = 0;
     glGenTextures(1, &texture);
+    if (!texture) printf("glGenTextures failed\n");
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pData);
 
@@ -882,7 +885,7 @@ void draw()
     // Background
     glDisable(GL_BLEND);
     glBindTexture(GL_TEXTURE_2D, texBackground);
-    glColor3ub(colors[option_color].r, colors[option_color].g, colors[option_color].b);
+    NESPI_glColor3ub(colors[option_color].r, colors[option_color].g, colors[option_color].b);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex2f(0, 0);
@@ -898,7 +901,7 @@ void draw()
     if (menuHighlighted != -1)
     {
         glDisable(GL_TEXTURE_2D);
-        glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
+        NESPI_glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
         glBegin(GL_QUADS);
         glTexCoord2f(0, 0);
         glVertex2f(0, 304 + 130 * (float)menuHighlighted - 20);
@@ -931,7 +934,7 @@ void draw()
     static int anim = 0;
     anim++;
     if (anim == 16) anim = 0;
-    glColor3f(1, 1, 1);
+    NESPI_glColor3f(1, 1, 1);
     glDisable(GL_TEXTURE_2D);
     glBegin(GL_QUADS);
     glVertex2f(SCREEN_W - (float)(anim % 4) * 4 - 4, (float)(anim / 4) * 4);
@@ -944,8 +947,8 @@ void draw()
 
     // Side menu icons
     glBindTexture(GL_TEXTURE_2D, texIcons[MENU_GAMES]);
-    if (menuSelected == MENU_GAMES) glColor3ub(255, 255, 255);
-    else glColor3ub(0, 0, 0);
+    if (menuSelected == MENU_GAMES) NESPI_glColor3ub(255, 255, 255);
+    else NESPI_glColor3ub(0, 0, 0);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex2f(38, 304);
@@ -969,8 +972,8 @@ void draw()
     glEnd();
 
     glBindTexture(GL_TEXTURE_2D, texIcons[MENU_RECENTS]);
-    if (menuSelected == MENU_RECENTS) glColor3ub(255, 255, 255);
-    else glColor3ub(0, 0, 0);
+    if (menuSelected == MENU_RECENTS) NESPI_glColor3ub(255, 255, 255);
+    else NESPI_glColor3ub(0, 0, 0);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex2f(38, 434);
@@ -994,8 +997,8 @@ void draw()
     glEnd();
 
     glBindTexture(GL_TEXTURE_2D, texIcons[MENU_SEARCH]);
-    if (menuSelected == MENU_SEARCH) glColor3ub(255, 255, 255);
-    else glColor3ub(0, 0, 0);
+    if (menuSelected == MENU_SEARCH) NESPI_glColor3ub(255, 255, 255);
+    else NESPI_glColor3ub(0, 0, 0);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex2f(38, 564);
@@ -1019,8 +1022,8 @@ void draw()
     glEnd();
 
     glBindTexture(GL_TEXTURE_2D, texIcons[MENU_OPTIONS]);
-    if (menuSelected == MENU_OPTIONS) glColor3ub(255, 255, 255);
-    else glColor3ub(0, 0, 0);
+    if (menuSelected == MENU_OPTIONS) NESPI_glColor3ub(255, 255, 255);
+    else NESPI_glColor3ub(0, 0, 0);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex2f(38, 694);
@@ -1046,6 +1049,7 @@ void draw()
     // Draw search text
     if (menuSelected == MENU_SEARCH)
     {
+        glBindTexture(GL_TEXTURE_2D, 0);
         glDisable(GL_TEXTURE_2D);
         NESPI_glColor4f(0, 0, 0, .4f);
         glBegin(GL_QUADS);
@@ -1055,7 +1059,7 @@ void draw()
             glVertex2f(SIDE_BAR_SIZE - 38, 64 + 68);
             glVertex2f(SIDE_BAR_SIZE - 38, 64);
 
-            glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
+            NESPI_glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
             glVertex2f(38 - 4, 64);
             glVertex2f(38 - 4, 64 + 68);
             glVertex2f(38 - 1, 64 + 68);
@@ -1078,7 +1082,7 @@ void draw()
         }
         glEnd();
         glEnable(GL_TEXTURE_2D);
-        glColor3ub(255, 255, 255);
+        NESPI_glColor3ub(255, 255, 255);
         if (texSearchText)
         {
             markTextureUse(texSearchText);
@@ -1120,7 +1124,7 @@ void draw()
         glEnable(GL_TEXTURE_2D);
         for (int i = 0; i < 12; ++i)
         {
-            glColor3ub(colors[i].r, colors[i].g, colors[i].b);
+            NESPI_glColor3ub(colors[i].r, colors[i].g, colors[i].b);
             glBegin(GL_QUADS);
             glTexCoord2f(0, 0);
             glVertex2f(SIDE_BAR_SIZE + 134 + (float)(i % 6) * 205, 144 + (float)(i / 6) * 113);
@@ -1133,7 +1137,7 @@ void draw()
             glEnd();
             if (option_color == i)
             {
-                glColor3ub(255, 255, 255);
+                NESPI_glColor3ub(255, 255, 255);
                 glDisable(GL_TEXTURE_2D);
                 glBegin(GL_QUADS);
                 {
@@ -1184,7 +1188,7 @@ void draw()
                 {
                     padding = 6;
                 }
-                glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
+                NESPI_glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
                 glDisable(GL_TEXTURE_2D);
                 glBegin(GL_QUADS);
                 {
@@ -1235,7 +1239,7 @@ void draw()
     if (menuSelected == MENU_RECENTS &&
         recents.empty())
     {
-        glColor3ub(255, 255, 255);
+        NESPI_glColor3ub(255, 255, 255);
         glBindTexture(GL_TEXTURE_2D, texNoRecent);
         glBegin(GL_QUADS);
         glTexCoord2f(0, 0);
@@ -1250,7 +1254,7 @@ void draw()
     }
     if (menuSelected < MENU_OPTIONS)
     {
-        glColor3ub(255, 255, 255);
+        NESPI_glColor3ub(255, 255, 255);
 
         if (menuSelected == MENU_SEARCH)
         {
@@ -1259,7 +1263,7 @@ void draw()
                 if (c == selectedGame[MENU_SEARCH] &&
                     menuHighlighted == -1)
                 {
-                    glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
+                    NESPI_glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
                     glDisable(GL_TEXTURE_2D);
                     float offset = 8;
                     if (pGamePad->isPressed(onut::GamePad::eGamePad::A))
@@ -1307,17 +1311,17 @@ void draw()
                     }
                     if (pGamePad->isPressed(onut::GamePad::eGamePad::A))
                     {
-                        glColor3ub(0, 0, 0);
+                        NESPI_glColor3ub(0, 0, 0);
                     }
                     else
                     {
-                        glColor3ub(255, 255, 255);
+                        NESPI_glColor3ub(255, 255, 255);
                     }
                     glEnable(GL_TEXTURE_2D);
                 }
                 else
                 {
-                    glColor3ub(255, 255, 255);
+                    NESPI_glColor3ub(255, 255, 255);
                 }
                 glBindTexture(GL_TEXTURE_2D, texSearchKeyboard[c]);
                 if (c == 36)
@@ -1415,7 +1419,7 @@ void draw()
             }
             if (menuHighlighted == -1 && selectedId == i)
             {
-                glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
+                NESPI_glColor3ub(selectedColor.r, selectedColor.g, selectedColor.b);
                 glDisable(GL_TEXTURE_2D);
                 glBegin(GL_QUADS);
                 glVertex2f(534 + (float)x * 686 - 12, 50 + (float)y * 472 - 12);
@@ -1424,7 +1428,7 @@ void draw()
                 glVertex2f(534 + 652 + (float)x * 686 + 12, 50 + (float)y * 472 - 12);
                 glEnd();
                 glEnable(GL_TEXTURE_2D);
-                glColor3ub(255, 255, 255);
+                NESPI_glColor3ub(255, 255, 255);
 
                 // Draw text
                 if (pGame->textTexture == 0)
@@ -1444,7 +1448,8 @@ void draw()
                 }
                 else
                 {
-                    glColor3ub(0, 0, 0);
+                    NESPI_glColor3ub(0, 0, 0);
+                    markTextureUse(pGame->textTexture);
                     glBindTexture(GL_TEXTURE_2D, pGame->textTexture);
                     glBegin(GL_QUADS);
                     glTexCoord2f(0, 0);
@@ -1456,7 +1461,7 @@ void draw()
                     glTexCoord2f(1, 0);
                     glVertex2f(534 + 652 + (float)x * 686, 50 + (float)y * 472 + 384);
                     glEnd();
-                    glColor3ub(255, 255, 255);
+                    NESPI_glColor3ub(255, 255, 255);
                 }
             }
             if (pGame->texture == 0)
@@ -1800,17 +1805,17 @@ int CALLBACK WinMain(
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_ALPHA_TEST);
+    glDisable(GL_LIGHTING);
     glEnable(GL_TEXTURE_2D);
     glViewport(0, 0, REAL_SCREEN_W, REAL_SCREEN_H);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 #if defined(__GNUC__)
- //   glFrustumf(-SCREEN_W / 2, SCREEN_W / 2, SCREEN_H / 2, -SCREEN_H / 2, -999, 999);
     float proj[16] = {
-        2.f / SCREEN_W, 0.f,                0.f,               0.f,
+        2.f / SCREEN_W, 0.f,                0.f,                0.f,
         0.f,           -2.f / SCREEN_H,     0.f,                0.f,
         0.f,            0.f,               -0.000500500493f,    0.f,
-        -1.f,            1.f,                0.5f,                1.f};
+       -1.f,            1.f,                0.5f,               1.f};
     glMultMatrixf(proj);
 #else
     glOrtho(0, SCREEN_W, SCREEN_H, 0, -999, 999);
