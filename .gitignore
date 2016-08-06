@@ -37,6 +37,7 @@ Release/
 *.sdf
 *.opensdf
 *.user
+*.suo
 
 # Linux crap
 *~
